@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
-    Box, Typography, Button, TextField, LinearProgress, Chip, IconButton, Container, Paper, Dialog,
+    Box, Typography, Button, TextField, LinearProgress, IconButton, Container, Paper, Dialog,
     DialogTitle, DialogContent, DialogActions, DialogContentText, Stack, Divider
 } from '@mui/material';
 import {
@@ -16,9 +16,12 @@ const ProjectDetailsPage = () => {
     const navigate = useNavigate();
     const [project, setProject] = useState(null);
     const [tasks, setTasks] = useState([]);
-    const [newTaskTitle, setNewTaskTitle] = useState('');
 
-    // --- STATE FOR MODALS ---
+    // --- STATE ---
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDate, setNewTaskDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // --- MODALS ---
     const [openEditProject, setOpenEditProject] = useState(false);
     const [openDeleteProject, setOpenDeleteProject] = useState(false);
     const [openDeleteTask, setOpenDeleteTask] = useState(false);
@@ -68,18 +71,21 @@ const ProjectDetailsPage = () => {
 
     // --- TASK ACTIONS ---
     const handleAddTask = async (e) => {
-        if(e) e.preventDefault(); // Prevent page refresh if form submitted
+        if(e) e.preventDefault();
         if (!newTaskTitle.trim()) return toast.warning("Please enter a task name.");
+        if (!newTaskDate) return toast.warning("Please select a due date.");
 
         try {
-            console.log("Adding task:", newTaskTitle);
+            console.log("Adding task:", newTaskTitle, "Due:", newTaskDate);
             const res = await api.post(`/tasks/project/${id}`, {
                 title: newTaskTitle,
-                dueDate: new Date().toISOString().split('T')[0], // Default: Today
+                dueDate: newTaskDate,
                 status: 'PENDING'
             });
             setTasks([...tasks, res.data]);
+
             setNewTaskTitle('');
+            setNewTaskDate(new Date().toISOString().split('T')[0]);
             toast.success("Task added!");
         } catch (err) {
             console.error("Add Task Error:", err);
@@ -170,32 +176,56 @@ const ProjectDetailsPage = () => {
                     </Box>
                 </Paper>
 
-                {/* ADD TASK SECTION (MATCHING STYLE) */}
+                {/* --- ADD TASK SECTION --- */}
                 <Paper component="form" onSubmit={handleAddTask} sx={{
-                    display: 'flex', alignItems: 'center', p: 2, mb: 4,
+                    display: 'flex', alignItems: 'center', p: 2, mb: 4, gap: 2,
                     bgcolor: '#1e293b', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)'
                 }}>
+                    {/*  Task Title Input */}
                     <TextField
                         fullWidth
-                        placeholder="Type a new task and press Enter..."
+                        placeholder="Type a new task..."
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         variant="standard"
                         InputProps={{
                             disableUnderline: true,
-                            sx: { color: 'white', fontSize: '1rem', px: 2 }
+                            sx: { color: 'white', fontSize: '1rem', px: 1 }
                         }}
                     />
+
+                    {/*  Date Picker Input */}
+                    <TextField
+                        type="date"
+                        value={newTaskDate}
+                        onChange={(e) => setNewTaskDate(e.target.value)}
+                        variant="standard"
+
+                        sx={{ minWidth: '160px' }}
+                        InputProps={{
+                            disableUnderline: true,
+                            sx: {
+                                color: '#94a3b8',
+                                fontSize: '0.9rem',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: 1,
+                                px: 2, py: 0.5,
+                                '& input::-webkit-calendar-picker-indicator': { filter: 'invert(1)', cursor: 'pointer' }
+                            }
+                        }}
+                    />
+
+                    {/* Add Button */}
                     <Button
                         type="submit"
                         variant="contained"
-                        sx={{ bgcolor: '#6366f1', px: 3, borderRadius: 2, boxShadow: '0 0 10px rgba(99,102,241,0.3)' }}
+                        sx={{ bgcolor: '#6366f1', px: 3, borderRadius: 2, boxShadow: '0 0 10px rgba(99,102,241,0.3)', minWidth: '100px' }}
                     >
-                        <Add /> Add
+                        <Add sx={{ mr: 1 }}/> Add
                     </Button>
                 </Paper>
 
-                {/* TASK LIST (MATCHING DASHBOARD STYLE) */}
+                {/* TASK LIST */}
                 <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, mb: 2 }}>Tasks ({tasks.length})</Typography>
 
                 <Paper sx={{ bgcolor: '#1e293b', borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
@@ -219,7 +249,6 @@ const ProjectDetailsPage = () => {
                                         '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' }
                                     }}
                                 >
-                                    {/* Left: Checkbox + Title */}
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, overflow: 'hidden' }}>
                                         <IconButton onClick={() => toggleTask(task)} sx={{ color: task.status === 'COMPLETED' ? '#10b981' : '#64748b' }}>
                                             {task.status === 'COMPLETED' ? <CheckCircle /> : <RadioButtonUnchecked />}
@@ -234,7 +263,6 @@ const ProjectDetailsPage = () => {
                                         </Typography>
                                     </Box>
 
-                                    {/* Right: Date + Delete */}
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                         {task.status === 'PENDING' && (
                                             <Typography sx={{ color: '#f59e0b', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -255,7 +283,7 @@ const ProjectDetailsPage = () => {
                     )}
                 </Paper>
 
-                {/* --- DIALOG: EDIT PROJECT --- */}
+                {/* --- DIALOGS --- */}
                 <Dialog open={openEditProject} onClose={() => setOpenEditProject(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { bgcolor: '#1e293b', color: 'white', borderRadius: 3 } }}>
                     <DialogTitle>Edit Project</DialogTitle>
                     <DialogContent>
@@ -270,14 +298,13 @@ const ProjectDetailsPage = () => {
                     </DialogActions>
                 </Dialog>
 
-                {/* --- DIALOG: DELETE PROJECT --- */}
                 <Dialog open={openDeleteProject} onClose={() => setOpenDeleteProject(false)} PaperProps={{ sx: { bgcolor: '#1e293b', color: 'white', borderRadius: 3 } }}>
                     <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
                         <WarningAmber /> Delete Project?
                     </DialogTitle>
                     <DialogContent>
                         <DialogContentText sx={{ color: '#94a3b8' }}>
-                            Are you sure you want to delete <b>"{project.title}"</b>? This action cannot be undone and will remove all tasks inside it.
+                            Are you sure you want to delete <b>"{project.title}"</b>? This action cannot be undone.
                         </DialogContentText>
                     </DialogContent>
                     <DialogActions sx={{ p: 3 }}>
@@ -286,7 +313,6 @@ const ProjectDetailsPage = () => {
                     </DialogActions>
                 </Dialog>
 
-                {/* --- DIALOG: DELETE TASK --- */}
                 <Dialog open={openDeleteTask} onClose={() => setOpenDeleteTask(false)} PaperProps={{ sx: { bgcolor: '#1e293b', color: 'white', borderRadius: 3 } }}>
                     <DialogTitle>Delete Task?</DialogTitle>
                     <DialogContent>
